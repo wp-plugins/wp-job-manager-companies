@@ -5,7 +5,7 @@
  * Description: Output a list of all companies that have posted a job, with a link to a company profile.
  * Author:      Astoundify
  * Author URI:  http://astoundify.com
- * Version:     1.0
+ * Version:     1.1
  * Text Domain: ajmc
  */
 
@@ -150,7 +150,7 @@ class Astoundify_Job_Manager_Companies {
 	 * @return void
 	 */
 	public function posts_filter( $query ) {
-		if ( ! get_query_var( $this->slug ) || ! $query->is_main_query() )
+		if ( ! ( get_query_var( $this->slug ) && ! $query->is_main_query() && ! is_admin() ) )
 			return;
 
 		$meta_query = array(
