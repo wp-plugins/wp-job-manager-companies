@@ -5,9 +5,9 @@ Plugin URI: http://github.com/astoundify/wp-job-manager-companies
 Donate link: https://www.paypal.com/cgi-bin/webscr?cmd=_xclick&business=contact@appthemer.com&item_name=Donation+for+WP Job Manager+Company+Profiles
 Contributors: SpencerFinnell
 Tags: job, job listing, companies, company list
-Requires at least: 3.5
-Tested up to: 3.5
-Stable Tag: 1.1
+Requires at least: 3.9
+Tested up to: 3.9
+Stable Tag: 1.3
 License: GPLv3
 License URI: http://www.gnu.org/licenses/gpl-3.0.html
 
@@ -33,6 +33,15 @@ Astoundify has released the first fully integrated WP Job Manager theme. Check o
 Create a `single-company.php` template in your child theme and add any content you desire.
 
 == Changelog ==
+
+= 1.3: March 10, 2014 =
+
+* Fix: Update translations
+
+= 1.2: September 21, 2013 =
+
+* Fix: Company title as page title when viewing a company.
+* Fix: Load 404 page template when no company is found.
 
 = 1.1: August 29, 2013 =
 
