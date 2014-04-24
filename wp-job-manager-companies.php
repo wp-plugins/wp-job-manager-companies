@@ -5,8 +5,8 @@
  * Description: Output a list of all companies that have posted a job, with a link to a company profile.
  * Author:      Astoundify
  * Author URI:  http://astoundify.com
- * Version:     1.1
- * Text Domain: ajmc
+ * Version:     1.3
+ * Text Domain: wp-job-manager-companies
  */
 
 // Exit if accessed directly
@@ -55,19 +55,19 @@ class Astoundify_Job_Manager_Companies {
 	 */
 	private function setup_globals() {
 		$this->file         = __FILE__;
-		
-		$this->basename     = apply_filters( 'ajmc_plugin_basenname', plugin_basename( $this->file ) );
-		$this->plugin_dir   = apply_filters( 'ajmc_plugin_dir_path',  plugin_dir_path( $this->file ) );
-		$this->plugin_url   = apply_filters( 'ajmc_plugin_dir_url',   plugin_dir_url ( $this->file ) );
 
-		$this->lang_dir     = apply_filters( 'ajmc_lang_dir',     trailingslashit( $this->plugin_dir . 'languages' ) );
+		$this->basename     = plugin_basename( $this->file );
+		$this->plugin_dir   = plugin_dir_path( $this->file );
+		$this->plugin_url   = plugin_dir_url ( $this->file );
 
-		$this->domain       = 'ajmc';
+		$this->lang_dir     = trailingslashit( $this->plugin_dir . 'languages' );
+
+		$this->domain       = 'wp-job-manager-companies';
 
 		/**
 		 * The slug for creating permalinks
 		 */
-		$this->slug         = apply_filters( 'ajmc_company_slug', 'company' );
+		$this->slug         = apply_filters( 'wp_job_manager_companies_company_slug', 'company' );
 	}
 
 	/**
@@ -79,11 +79,13 @@ class Astoundify_Job_Manager_Companies {
 	 */
 	private function setup_actions() {
 		add_shortcode( 'job_manager_companies', array( $this, 'shortcode' ) );
-		
+
+		add_filter( 'wp_title', array( $this, 'page_title' ), 20, 2 );
+
 		add_action( 'generate_rewrite_rules', array( $this, 'add_rewrite_rule' ) );
 		add_filter( 'query_vars', array( $this, 'query_vars' ) );
-		add_action( 'template_redirect', array( $this, 'template_loader' ) );
 		add_filter( 'pre_get_posts', array( $this, 'posts_filter' ) );
+		add_action( 'template_redirect', array( $this, 'template_loader' ) );
 	}
 
 	/**
@@ -95,7 +97,7 @@ class Astoundify_Job_Manager_Companies {
 	 * @return array $vars The modified array of query variables.
 	 */
 	public function query_vars( $vars ) {
-		$vars[] = 'company';
+		$vars[] = $this->slug;
 
 		return $vars;
 	}
@@ -109,15 +111,15 @@ class Astoundify_Job_Manager_Companies {
 	 */
 	public function add_rewrite_rule() {
 		global $wp_rewrite;
-		
+
 		$wp_rewrite->add_rewrite_tag( '%company%', '(.+?)', $this->slug . '=' );
-		
+
 		$rewrite_keywords_structure = $wp_rewrite->root . $this->slug ."/%company%/";
-		
+
 		$new_rule = $wp_rewrite->generate_rewrite_rules( $rewrite_keywords_structure );
-	 
+
 		$wp_rewrite->rules = $new_rule + $wp_rewrite->rules;
-	
+
 		return $wp_rewrite->rules;
 	}
 
@@ -132,10 +134,13 @@ class Astoundify_Job_Manager_Companies {
 	public function template_loader() {
 		global $wp_query;
 
-		if ( ! get_query_var( 'company' ) )
+		if ( ! get_query_var( $this->slug ) )
 			return;
 
-		locate_template( apply_filters( 'ajmc_templates', array( 'single-company.php', 'taxonomy-job_listing_category.php' ) ), true );
+		if ( 0 == $wp_query->found_posts )
+			locate_template( apply_filters( 'wp_job_manager_companies_404', array( '404.php' ) ), true );
+		else
+			locate_template( apply_filters( 'wp_job_manager_companies_templates', array( 'single-company.php', 'taxonomy-job_listing_category.php' ) ), true );
 
 		exit();
 	}
@@ -215,19 +220,19 @@ class Astoundify_Job_Manager_Companies {
 		global $wpdb;
 
 		$output      = '';
-		$companies   = $wpdb->get_col( 
+		$companies   = $wpdb->get_col(
 			"SELECT pm.meta_value FROM {$wpdb->postmeta} pm
 			 LEFT JOIN {$wpdb->posts} p ON p.ID = pm.post_id
-			 WHERE pm.meta_key = '_company_name' 
-			 AND p.post_status = 'publish' 
+			 WHERE pm.meta_key = '_company_name'
+			 AND p.post_status = 'publish'
 			 AND p.post_type = 'job_listing'
-			 GROUP BY pm.meta_value 
+			 GROUP BY pm.meta_value
 			 ORDER BY pm.meta_value"
 		);
 		$_companies = array();
 
 		foreach ( $companies as $company ) {
-			$_companies[ $company[0] ][] = $company;
+			$_companies[ strtoupper( $company[0] ) ][] = $company;
 		}
 
 		if ( $atts[ 'show_letters' ] ) {
@@ -250,7 +255,9 @@ class Astoundify_Job_Manager_Companies {
 			$output .= '<ul>';
 
 			foreach ( $_companies[ $letter ] as $company_name ) {
-				$output .= '<li class="company-name"><a href="' . $this->company_url( $company_name ) . '">' . esc_attr( $company_name ) . '</a></li>';
+				$count = count( get_posts( array( 'post_type' => 'job_listing', 'meta_key' => '_company_name', 'meta_value' => $company_name ) ) );
+
+				$output .= '<li class="company-name"><a href="' . $this->company_url( $company_name ) . '">' . esc_attr( $company_name ) . ' (' . $count . ')</a></li>';
 			}
 
 			$output .= '</ul>';
@@ -283,6 +290,35 @@ class Astoundify_Job_Manager_Companies {
 		}
 
 		return esc_url( $url );
+	}
+
+	/**
+	 * Set a page title when viewing an individual company.
+	 *
+	 * @since WP Job Manager - Company Profiles 1.2
+	 *
+	 * @param string $title Default title text for current view.
+	 * @param string $sep Optional separator.
+	 * @return string Filtered title.
+	 */
+	function page_title( $title, $sep ) {
+		global $paged, $page;
+
+		if ( ! get_query_var( $this->slug ) )
+			return $title;
+
+		$company = urldecode( get_query_var( $this->slug ) );
+
+		$title = get_bloginfo( 'name' );
+
+		$site_description = get_bloginfo( 'description', 'display' );
+
+		if ( $site_description && ( is_home() || is_front_page() ) )
+			$title = "$title $sep $site_description";
+
+		$title = sprintf( __( 'Jobs at %s', 'wp-job-manager-companies' ), $company ) . " $sep $title";
+
+		return $title;
 	}
 }
 add_action( 'init', array( 'Astoundify_Job_Manager_Companies', 'instance' ) );
