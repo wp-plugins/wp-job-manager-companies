@@ -67,7 +67,8 @@ class Astoundify_Job_Manager_Companies {
 		/**
 		 * The slug for creating permalinks
 		 */
-		$this->slug         = apply_filters( 'wp_job_manager_companies_company_slug', 'company' );
+		$this->slug = apply_filters( 'wp_job_manager_companies_company_slug', __( 'company',
+		'wp-job-manager-companies' ) );
 	}
 
 	/**
@@ -86,6 +87,8 @@ class Astoundify_Job_Manager_Companies {
 		add_filter( 'query_vars', array( $this, 'query_vars' ) );
 		add_filter( 'pre_get_posts', array( $this, 'posts_filter' ) );
 		add_action( 'template_redirect', array( $this, 'template_loader' ) );
+
+		add_action( 'plugins_loaded', array( $this, 'load_plugin_textdomain' ) );
 	}
 
 	/**
@@ -174,6 +177,7 @@ class Astoundify_Job_Manager_Companies {
 		}
 
 		$query->set( 'post_type', 'job_listing' );
+		$query->set( 'post_status', 'publish' );
 		$query->set( 'meta_query', $meta_query );
 	}
 
@@ -255,7 +259,7 @@ class Astoundify_Job_Manager_Companies {
 			$output .= '<ul>';
 
 			foreach ( $_companies[ $letter ] as $company_name ) {
-				$count = count( get_posts( array( 'post_type' => 'job_listing', 'meta_key' => '_company_name', 'meta_value' => $company_name ) ) );
+				$count = count( get_posts( array( 'post_type' => 'job_listing', 'meta_key' => '_company_name', 'meta_value' => $company_name, 'nopaging' => true ) ) );
 
 				$output .= '<li class="company-name"><a href="' . $this->company_url( $company_name ) . '">' . esc_attr( $company_name ) . ' (' . $count . ')</a></li>';
 			}
@@ -281,7 +285,7 @@ class Astoundify_Job_Manager_Companies {
 	public function company_url( $company_name ) {
 		global $wp_rewrite;
 
-		$company_name = urlencode( $company_name );
+		$company_name = rawurlencode( $company_name );
 
 		if ( $wp_rewrite->permalink_structure == '' ) {
 			$url = home_url( 'index.php?'. $this->slug . '=' . $company_name );
@@ -320,5 +324,18 @@ class Astoundify_Job_Manager_Companies {
 
 		return $title;
 	}
+
+	/**
+	 * Localisation
+	 *
+	 * @access private
+	 * @return void
+	 */
+	public function load_plugin_textdomain() {
+		$locale = apply_filters( 'plugin_locale', get_locale(), 'wp-job-manager-companies' );
+
+		load_textdomain( 'wp-job-manager-companies', WP_LANG_DIR . "/wp-job-manager-companies/wp-job-manager-companies-$locale.mo" );
+		load_plugin_textdomain( 'wp-job-manager-companies', false, dirname( plugin_basename( __FILE__ ) ) . '/languages/' );
+	}
 }
-add_action( 'init', array( 'Astoundify_Job_Manager_Companies', 'instance' ) );
+add_action( 'plugins_loaded', array( 'Astoundify_Job_Manager_Companies', 'instance' ) );
